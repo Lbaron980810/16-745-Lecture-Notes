@@ -76,7 +76,7 @@ A very common class of controllers is the Linear Quadratic Regulator. In this se
     \min_{x_{1:N}, u_{1:N-1}} &\sum_{k=1}^{N-1} \Big[ \frac{1}{2} x_k^T Q x_k + \frac{1}{2} u_k^T R_k u_k  \Big] + \frac{1}{2} x_N^T Q_N x_N \\
     & \ \ni \ x_{k+1} = A_k x_k + B_k u_k 
 \end{align}
-Here, we have: $Q \geq 0, R \geq 0$. 
+Here, we have: $Q \geq 0, R > 0$. 
 \begin{itemize}
     \item The goal of this problem is to drive the system to the origin.
     \item It's considered a ``time-invariant'' LQR if $A_k=A, B_k=B, Q_k=Q, R_k=R \ \forall \ k$, and is a ``time-varying'' LQR (TVLQR) otherwise. 

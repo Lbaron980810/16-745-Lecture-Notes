@@ -174,7 +174,7 @@ We now have a recursion for $K$ and $P$:
 \begin{itemize}
     \item This is called a Riccati equation / recursion.
     \itm We can solve the QP by doing a backward Riccati recursion followed by a forward rollout starting from $x_1$.
-    \item This has complexity $\mathcal{O} (N (n+m)^3$ instead of $\mathcal{O} (N^3 (n+m)^3$ for the naive QP solution. 
+    \item This has complexity $\mathcal{O} (N (n+m)^3)$ instead of $\mathcal{O} (N^3 (n+m)^3)$ for the naive QP solution. 
     This carries over to the general non-linear case. 
     \item Even more importantly, we now have a feedback policy instead of an open loop trajectory to execute. 
 \end{itemize}
@@ -238,7 +238,7 @@ This is equivalent to solving the following least-squares problem for $u_{0:n-1}
     \end{bmatrix}
 \end{align}
 Here, $\big[ C^T (C C^T)^{-1} \big]$ is the pseudo-inverse of controllability $C$, and requires $C C^T$ to be invertible. 
-We can stop at $n$ time steps because the Cayley-Hamilton theorem says that $A^n$ can e written as a linear combination of smaller powers of $A$: 
+We can stop at $n$ time steps because the Cayley-Hamilton theorem says that $A^n$ can be written as a linear combination of smaller powers of $A$: 
 \begin{align}
     A^n = \sum_{k=0}^{n-1} \alpha_k A^k 
 \end{align}

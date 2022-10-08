@@ -109,7 +109,7 @@ Together, these conditions specify the full set of KKT conditions.
 \subsection{Intuition}
 The intuition for these conditions is as follows: 
 \begin{itemize}
-    \item If constraint is active, (we are on the constraint manifold), we have $c(x) = 0 \implies \lambda = 0$. This is the same as the equality case. 
+    \item If constraint is active, (we are on the constraint manifold), we have $c(x) = 0 \implies \lambda > 0$. This is the same as the equality case. 
     \item If the constraint is inactive, we have $c(x)>0 \implies \lambda = 0$, which is the same as the \textit{unconstrained} case. 
     \item Essentially complementarity ensures either one of $\lambda$ and $c(x)$ will be $0$, or ``on /off switching'' of constraints.
 \end{itemize}
@@ -175,7 +175,7 @@ Algorithmically, this can be expressed as:
 	\label{alg:auglag}
 	\begin{algorithmic}[1]	
 	    \While {Not Converged} 
-            \State $\min_x L_{\rho} (x, \tilde{\lambda}$ \Comment{Minimize w.r.t $x$.}
+            \State $\min_x L_{\rho} (x, \tilde{\lambda})$ \Comment{Minimize w.r.t $x$.}
             \State $\tilde{\lambda} \gets \tilde{\lambda} - \max(0, \tilde{\lambda}-\rho c(x)) $ \Comment{Update the multipliers, clamping to guarantee non-negativity.}
             \State $\rho \gets \alpha \rho$ \Comment{Increase penalty. Typically, $\alpha \approx 10$}
         \EndWhile

@@ -11,7 +11,7 @@
 \begin{itemize}
     \item Optimal control problems have an inherently sequential structure. 
     \item Past control inputs affect future states but future control inputs cannot affect past states. 
-    \item Bellman's principle (i.e. The principle of optimality), states the cocnsequences of this for optimal trajectories. 
+    \item Bellman's principle (i.e. The principle of optimality), states the consequences of this for optimal trajectories. 
     \item Sub-trajectories of optimal trajectories have to be optimal for the appropriately defined sub-problem.
 \end{itemize}
 
@@ -155,4 +155,156 @@ Remember to check out the lecture video for an example, where $\lambda_n$ from t
     \item Convex problems don't have spurious local optima that satisfy the KKT. If you find a local KKT solution, you have the global optimum!
     \item Practically, Newton's method converges really fast and reliably (~5-10 iterations at maximum). 
     \item Can bound the solution time for real-time control.
+\end{itemize}
+
+\subsection{Convex MPC}
+\begin{itemize}
+    \item Think of this as "constrained LQR"
+    \item Rememver from DP, if we have the cost-to-go, we can get $u_k$ by solving a one-step problem
+    \begin{align}
+    u_k &= \arg\min_u l(x_k, u) + V_{k+1}(f(x_k,u)) \\
+    &= \arg\min_u \frac{1}{2} u^TR_k u + \frac{1}{2} (A_k x_k + B_k u)^TP_{k+1}(A_k x_k + B_k u)
+    \end{align}
+    \item We can add constraints on u to this one-step problem, but will perform poorly because $V_k(x)$ was computed without constraints.
+    \item There's no reason I can't add more steps to the one-step problem:
+    \begin{align}
+        \min_{x_{1:H}, u_{1:H-1}} &\sum_{k=1}^{H-1} \frac{1}{2} x_k Q_k x_k + \frac{1}{2} u_k^T R_k u_k + x_H^T P x_H \\
+        \ \ni \ x_k &\in X \\
+        u_k &\in U
+    \end{align}
+    \item $H \leq N$ is called the "Horizon"
+    \item With no additional constraints, MPC/"receediing horizon" exactly matches LQR for any H.
+    \item Intuition: explicit constrained Optimization over the first H steps getting the state close enough to the origin/reference, so that the constraints are no longer active and LQR solution is valid farther into the futrue.
+    \item In General:
+    \begin{itemize}
+        \item A good approximation of V(x) is important for good performance.
+        \item Better V(x) $\Rightarrow$ shorter horizon will work.
+        \item Longer H $\Rightarrow$ better performance, less reliance on quality of V(x) approximation.
+    \end{itemize}
+\end{itemize}
+
+\subsection{Example}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.4\linewidth]{L8_Images/F2.PNG}
+    \caption{Planar Quadrotor}
+    \label{fig:l8f2}
+\end{figure}
+
+\begin{itemize}
+    \item Planar Quadrotor
+    \begin{align}
+        m \ddot x &= -(u_1 + u_2) \sin(\theta) \\
+        m \ddot y &= (u_1 + u_2) \cos(\theta) - mg \\
+        J \ddot \theta &= \frac{1}{2} l (u_2 - u_1)
+    \end{align}
+    \item Linearize about hover(approximate on angle, so it's right as long as the angle is small):
+    \begin{align}
+        & \Rightarrow u_1 = u_2 = \frac{1}{2} mg \text{ (cancel gravity)} \\
+        & \Rightarrow 
+        \begin{cases}
+            \Delta \ddot x \approx -g \Delta \theta \\
+            \Delta \ddot y \approx \frac{1}{m} (\Delta u_1 + \Delta u_2) \\
+            \Delta \ddot \theta \approx \frac{1}{J} \frac{l}{2}(\Delta u_2 - \Delta u_1)
+        \end{cases} \\
+    \end{align}
+
+    \begin{align}
+        \begin{bmatrix}
+            \Delta \dot x \\
+            \Delta \dot y \\
+            \Delta \dot \theta \\
+            \Delta \ddot x \\
+            \Delta \ddot y \\
+            \Delta \ddot \theta \\
+        \end{bmatrix} &= 
+        \begin{bmatrix}
+             &  &  & | &  &  &  \\
+             & 0&  & | &  & I&  \\
+             &  &  & | &  &  &  \\
+            - & - & - & - & - & - \\
+            0& 0& -g& | & & &  \\
+            0& 0& 0& | & & 0&  \\
+            0& 0& 0& | & & &  \\
+        \end{bmatrix}
+        \begin{bmatrix}
+            \Delta  x \\
+            \Delta  y \\
+            \Delta \theta \\
+            \Delta \dot x \\
+            \Delta \dot y \\
+            \Delta \dot \theta \\
+        \end{bmatrix} + 
+        \begin{bmatrix}
+            0 & 0 \\
+            0 & 0 \\
+            0 & 0 \\
+            - & - \\
+            0 & 0 \\
+            \frac{1}{m} & \frac{1}{m} \\
+            -\frac{l}{2J} &\frac{l}{2J} 
+        \end{bmatrix}
+        \begin{bmatrix}
+            \Delta  u_1 \\
+            \Delta  u_2 \\
+        \end{bmatrix} \\
+        & \Rightarrow \dot X = AX + Bu
+    \end{align}
+
+    \item MPC Cost Function: 
+    \begin{align}
+        J = \sum_{k = 1}^H \frac{1}{2} (X_k - X_{ref})^T Q (X_k - X_{ref}) + \frac{1}{2} \Delta u_k^T R \Delta u_k + (X_H - X_{ref})^T P_H (X_H - X_{ref})
+    \end{align}
+
+    \item Remember to check out the example of this in the lecture video.
+\end{itemize}
+
+\subsection{Other MPC Examples}
+\begin{figure}
+    \centering
+    \includegraphics[width=0.4\linewidth]{L8_Images/F3.PNG}
+    \caption{Rokcet Landing}
+    \label{fig:l8f3}
+\end{figure}
+\begin{figure}
+    \centering
+    \includegraphics[width=0.4\linewidth]{L8_Images/F4.PNG}
+    \caption{Legged robots friction cone}
+    \label{fig:l8f4}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.2\linewidth]{L8_Images/F5.PNG}
+    \caption{Four-sided pyramid}
+    \label{fig:l8f5}
+\end{figure}
+
+\begin{itemize}
+    \item Rocket Landing
+    \begin{itemize}
+        \item Thrust vector constraints are natually expressed as a cone! \cref{fig:l8f3}
+        \item Mars landing + SpaceX use SOCP-based MPC with linearized dynamics
+    \end{itemize}
+    \item Legged Robots
+    \begin{itemize}
+        \item Contact forces must obey "friction cone" constraints.\cref{fig:l8f4}
+        \begin{align}
+            \Vert b \Vert_2 \leq \mu n
+        \end{align}
+        \item Cone is often approximated as a four-sided pyramid, so thee constraint is linear ($Ax \leq b$) \cref{fig:l8f5}
+        \item MIT Cheetah and other quadropeds use QP-based MPC with linearized dynamics + friction pyramid.
+    \end{itemize}
+\end{itemize}
+
+\subsection{What about Nonlinear Dynamics?}
+
+\begin{itemize}
+    \item Linear stuff often works well, so use it if you can.
+    \item Nonlinear dynamics are risky because optimization problems are non-convex.
+    \item No convergence guarentees.
+    \item Can work well in practice, due to warm starting (solution doesn't change much at each itteration).
+    \item Active area of research.
+    \item Common in autonomous driving.
 \end{itemize}

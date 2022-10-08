@@ -1,0 +1,331 @@
+\newpage
+\section{LECTURE 9}
+
+\subsection{Agenda}
+\begin{itemize}
+    \item Nonlinear Trajectory Optimization
+    \item Differential Dynamic Programming, a.k.a Itterative LQR
+\end{itemize}
+
+\subsection{Nonlinear Trajectory Optimization}
+Consider the problem we have before: 
+\begin{align}
+    \min_{x_{1:N}, u_{1:N-1}} \ & J = \sum_{k=1}^{N-1} l_k(x_k, u_k) + l_N(x_N) \text{ non-convex cost}\\
+    \ni \ & x_{n+1} = f(x_n,u_n) \text{ nonlinear dynamics} \\
+    & x_n \in X_n \text{ non-convex constraints} \\
+    & u_n \in U_n \text{ non-convex constraints}
+\end{align}
+
+\begin{itemize}
+    \item Usually assume costs are $C^2$ (Continuous $2^{nd}$ derivatives)
+    \item Constraints are assumed to be $C^1$
+\end{itemize}
+
+\subsection{Differential Dynamic Programming(DDP)}
+\begin{itemize}
+    \item Nonlinear trajectory Optimization method based on approximate DP.
+    \item Use second-order Tayler approximations of cost-to-go in DP to compute Newton steps on control trajectory.
+    \item Very fast convergence is possible.
+\end{itemize}
+
+\subsubsection{Cost-to-go expansion}
+\begin{align}
+    V_k(x + \Delta x) \approx V_k(x) + p_k^T \Delta x + \frac{1}{2}\Delta x^T P_k \Delta x \\
+    p_N = \nabla_x l_N(x), P_N = \nabla_{xx}^2 l_N(x)
+\end{align}
+
+\subsubsection{Action-Value function($S(x,u) = l(x,u) + V_N(f(x,u))$) expansion:}
+\begin{align}
+    S_k(x + \Delta x, u + \Delta u) \approx S_k(x, u) +
+    \begin{bmatrix}
+        g_x \\ g_u
+    \end{bmatrix}^T
+    \begin{bmatrix}
+        \Delta x \\ \Delta u
+    \end{bmatrix} +
+    \frac{1}{2} 
+    \begin{bmatrix}
+        \Delta x \\ \Delta u
+    \end{bmatrix}^T
+    \begin{bmatrix}
+        G_{xx} & G_{xu} \\
+        G_{ux} & G_{uu}
+    \end{bmatrix}
+    \begin{bmatrix}
+        \Delta x \\ \Delta u
+    \end{bmatrix} (G_{xu} = G_{ux}^T)
+\end{align}
+
+\begin{itemize}
+    \item Bellman Equation:
+    \begin{align}
+        \begin{split}
+        V_{N-1}(x + \Delta x) & = \min_{\Delta u}[S(x, u) + g_x^T \Delta x + g_u^T \Delta u +
+                                \frac{1}{2} \Delta x^T G_{xx} \Delta x + 
+                                \frac{1}{2} \Delta u^T G_{uu} \Delta u + \\
+                                & \frac{1}{2} \Delta x^T G_{xu} \Delta u + 
+                                \frac{1}{2} \Delta u^T G_{ux} \Delta x ] \\
+        \end{split}
+    \end{align}
+    \begin{align}
+        \nabla_u V_{N-1}(x + \Delta x) & = g_u + G_{uu} \Delta u + G_{ux} \Delta x = 0 \\
+        \Rightarrow \Delta u_{N-1} & = -G_{uu}^{-1} g_u - G_{uu}^{-1}G_{ux}\Delta x = -d_{N-1} - K_{N-1} \Delta x
+    \end{align}
+
+    \item Plug $\Delta u$ back in to $S_{N-1}$ to recover $V_{N-1}(x + \Delta x)$
+    \begin{align}
+        \begin{split}
+        V_{N-1}(x + \Delta x) &= V_{N-1}(x) + g_x^T \Delta x + g_u^T (-d_{N-1} - K_{N-1} \Delta x) + \\
+        &\frac{1}{2} \Delta x^T G_{xx} \Delta x + 
+        \frac{1}{2} (d_{N-1} + K_{N-1} \Delta x)^T G_{uu} (d_{N-1} + K_{N-1} \Delta x) - \\
+        &\frac{1}{2} \Delta x^T G_{xu} (d_{N-1} + K_{N-1} \Delta x) - 
+        \frac{1}{2} (d_{N-1} + K_{N-1} \Delta x)^T G_{ux} \Delta x \\
+        \end{split} 
+    \end{align}
+    \begin{align}
+        P_{N-1} & = G_{xx} + K_{N-1}^T G_{uu} K_{N-1} - G_{xu} K_{N-1} - K_{N-1}^T G_{ux} \\
+        p_{N-1} & = g_x - K_{N-1}^T g_u + K_{N-1}^T G_{uu} d_{N-1} - G_{xu} d_{N-1}
+    \end{align}
+    \item Need some more math to calculate g and G.
+\end{itemize}
+
+\subsubsection{Matrix Calculus:}
+given $f(x): \mathbb{R}^n \to \mathbb{R}^m$, look at second order Taylor expansion:
+\begin{itemize}
+    \item If m = 1:
+    \begin{align}
+        f(x + \Delta x) \approx & f(x) + \frac{\partial f}{\partial x} \Delta x + \frac{1}{2}\Delta x^T \frac{\partial^2f}{\partial x^2}\Delta x \\
+        & \frac{\partial f}{\partial x} \in \mathbb{R}^{1 \times n} \\ 
+        & \frac{\partial^2f}{\partial x^2} \in \mathbb{R}^{n \times n}
+    \end{align}
+    \item If m > 1:
+    \begin{align}
+        f(x + \Delta x) \approx & f(x) + \frac{\partial f}{\partial x} \Delta x + \frac{1}{2}(\frac{\partial}{\partial x} [\frac{\partial f}{\partial x} \Delta x]) \Delta x \\
+        & \frac{\partial f}{\partial x} \in \mathbb{R}^{n \times m} \\ 
+    \end{align}
+    \item for m > 1, $\frac{\partial^2f}{\partial x^2}$ is a third-rank tensor. Think of this as a "3D-matrix". We need more notation to keep track of which dimensions we're multiplying along.
+    \item Kronnecker Product:
+    \begin{align}
+        A \otimes B = 
+        \begin{bmatrix}
+            a_{11}B & a_{12}B & ... \\
+            a_{21}B & a_{22}B & ... \\
+            ... & ... & ... \\
+        \end{bmatrix} \\
+        A \in \mathbb{R}^{l \times m}, B \in \mathbb{R}^{n \times p}, A \otimes B \in \mathbb{R}^{ln \times mp}
+    \end{align}
+    \item Vectorization Operator
+    \begin{align}
+        A = \begin{bmatrix}
+            A_1 & A_2 & ... & A_m
+        \end{bmatrix} \in \mathbb{R}^{l \times m}\\
+        vec(A) = \begin{bmatrix}
+            A_1 \\ A_2 \\ ... \\ A_m
+        \end{bmatrix} \in \mathbb{R}^{lm \times 1}
+    \end{align}
+    \item The "vec trick"
+    \begin{align}
+        vec(ABC) & = (C^T \otimes A) vec(B) \\
+        \Rightarrow vec(AB) & = (B^T \otimes I) vec(A) = (I \otimes A) vec(B)
+    \end{align}
+    \item If we want to diff a matrix w.r.t a vector, vectorize the matrix:
+    \begin{align}
+        \frac{\partial A(x)}{\partial x} = \frac{\partial vec(A)}{\partial x} \in \mathbb{R}^{lm \times n} \\
+        \text{(implied whenever we diff a matrix)}
+    \end{align}
+    \item Back to Taylor expansion of f(x):
+    \begin{align}
+        \begin{split}
+        f(x + \Delta x) & \approx f(x) + \frac{\partial f}{\partial x} \Delta x + \frac{1}{2} (\Delta x^T \otimes I) \frac{\partial^2 f}{\partial x^2} \Delta x \\
+        & = f(x) + A \Delta x + \frac{1}{2} (\Delta x^T \otimes I) \frac{\partial vec(A)}{\partial x} \Delta x \\
+        & = f(x) + vec(IA \Delta x) + \frac{1}{2} (\Delta x^T \otimes I) \frac{\partial vec(A)}{\partial x} \Delta x \\
+        \end{split}
+    \end{align}
+    \item Sometimes we need to diff through a transpose:
+    \begin{align}
+        \frac{\partial}{\partial x} (A(x)^T B) & = (B^T \otimes I) T \frac{\partial A}{\partial x} \\
+        T * vec(A) & = vec(A^T)
+    \end{align}
+\end{itemize}
+
+\subsubsection{Action-Value Function Derivatives:}
+\begin{align}
+    S_k(x,u) & = l_k(x,u) + V_{k+1}(f(x,u)) \\
+    \Rightarrow \frac{\partial S}{\partial x} & = \frac{\partial l}{\partial x} + \frac{\partial v}{\partial x} \frac{\partial f}{\partial x} \Rightarrow g_x = \nabla_x l + A_k^T p_{k+1} \\
+    \Rightarrow \frac{\partial S}{\partial u} & = \frac{\partial l}{\partial u} + \frac{\partial v}{\partial x} \frac{\partial f}{\partial u} \Rightarrow g_u = \nabla_u l + U_k^T p_{k+1} \\
+    G_{xx} & = \frac{\partial g_x}{\partial x} = \nabla_{xx}^2 l(x,u) + A_k^T \nabla^2 V_{k+1} A_k + (p_{k+1}^T \otimes I) T \frac{\partial A_k}{\partial x} \\
+    G_{uu} & = \frac{\partial g_u}{\partial u} = \nabla_{uu}^2 l(x,u) + B_k^T \nabla^2 V_{k+1} B_k + (p_{k+1}^T \otimes I) T \frac{\partial B_k}{\partial u} \\
+    G_{xu} & = \frac{\partial g_x}{\partial u} = \nabla_{xu}^2 l(x,u) + A_k^T \nabla^2 V_{k+1} B_k + (p_{k+1}^T \otimes I) T \frac{\partial A_k}{\partial u} \\
+    & \text{(The last term is often referred as "tensor term")}
+\end{align}
+
+\begin{itemize}
+    \item Often tensor terms are left out because they are expensive to compute. Equivalent to Newton v.s. Gauss-Newton.
+    \item Version without tensor terms called iLQR, otherwise called DDP.
+    \item Forward Rollout of DDP:
+\end{itemize}
+
+\\
+\noindent
+\begin{algorithm}
+	\caption{Forward Rollout}
+	\label{alg:ForwardRollout}
+	\begin{algorithmic}[1]	
+        \State $\Delta J = 0$
+	    \While {K = 1:N-1} 
+            \State $u_k' = u_k - \alpha d_k - K_k(x_k' - x_k)$ \Comment{$\alpha$ is line search step length}
+            \State $x_{k+1}' = f(x_k', u_k') $
+            \State $\Delta J = \Delta J + \alpha g_{uu}^T d_k$ \Comment{expected cost change based on first order taylor expansion}
+        \Endwhile
+	\end{algorithmic}
+\end{algorithm}
+\\
+
+\begin{itemize}
+    \item Line Search of DDP:
+\end{itemize}
+\\
+\noindent
+\begin{algorithm}
+	\caption{Line Search}
+	\label{alg:linesearch}
+	\begin{algorithmic}[1]	
+        \State $\alpha = 1$
+	    \While {$J(x', u') > J(x, u) - b \Delta J} \Comment{$b$ is Armijo tolorance}
+            \State $x', u', \Delta J = rollout(x, u, d, K, \alpha)$ 
+            \State $\alpha \gets c \alpha$ \Comment{c is back-tracking parameter}
+            \State x, u \gets x', u \\
+            \State Repeat until $|d|_\infty < tol$
+        \Endwhile
+	\end{algorithmic}
+\end{algorithm}
+\\
+
+\subsubsection{DDP Recap:}
+\begin{itemize}
+    \item Solve the unconstrained trajectory optimization problem
+    \begin{align}
+        \min_{x_{1:N}, u_{1:N-1}} \ & J = \sum_{k=1}^{N-1} l_k(x_k, u_k) + l_N(x_N) \\
+        \ni \ & x_{n+1} = f(x_n,u_n)
+    \end{align}
+    \item Backward Pass:
+    \begin{align}
+        V_k(x + \Delta x) & \approx V_k(x) + p_k^T \Delta x + \frac{1}{2}\Delta x^T P_k \Delta x \\
+        p_N & = \nabla_x l_N(x), P_N = \nabla_{xx}^2 l_N(x) \\
+        V_{N-1}(x + \Delta x) & = \min_{\Delta u} S(x + \Delta x, u + \Delta u) \\
+        \Rightarrow \Delta u_{k-1} & = -d_{k-1} - K_{k-1} \Delta x_{k-1} \\
+        P_{k-1} & = G_{xx} + K^T G_{uu} K - G_{xu} K - K^T G_{ux} \\
+        p_{k-1} & = g_u - K^T g_u + K^T G_{uu} d - G_{xu}d
+    \end{align}
+    \item Forward Rollout
+    \item Line Search
+\end{itemize}
+
+
+\subsubsection{Example:}
+
+\begin{itemize}
+    \item Cartpole + acrobot swing up
+    \item DDP can converge in fewer itterations but itterations aer more expensive. iLQR often wins in wall clock time.
+    \item Problem is non-convex $\Rightarrow$ can land in multiple different local optima depending on initial.
+\end{itemize}
+
+\subsubsection{Regularization}
+
+\begin{itemize}
+    \item Just like standard Newton, V(x) and/or S(x,u) Hessians can become indefinite in backward pass.
+    \item Definitely necessary for DDP, often a good idea with iLQR as well.
+    \item Many options for regularizing.
+    \item Add a multiple of identity to $\nabla^2 l(x,u)$ just like standard Newton.
+    \item Regularize $P_k$ or $G_k$ as needed in the backward pass.
+    \item Regularize $G_{uu} = \nabla_{uu}^2 S(x,u)$ as needed in the backward pass. (This is the only matrix you have to invert)
+    \begin{align}
+        d = G_{uu}^{-1} g_u, K = G_{uu}^{-1} G_{ux}
+    \end{align}
+    \item This last out is a good choice for iLQR but not DDP.
+    \item Regularization shouldn't be required in iLQR, but can be necessary due to roundoff/truncation error that accumulates in backward pass.
+\end{itemize}
+
+\subsubsection{DDP Notes:}
+
+\begin{itemize}
+    \item Can be very fast (itterations + wall clock).
+    \item One of the most efficient methods due to exploitation of DP structure.
+    \item Always dynamically feasible due to forward rollout $\Rightarrow$ cam always execute on robot.
+    \item Comes with TVLQR tracking controller for free. $\Rightarrow$ can be very effective for online use.
+    \item Does not natively handle constraints.
+    \item Does not support infeasible initial guess for state trajectory due to forward rollout. Bad for "maze" or "bug trap" problems.
+    \item Can suffer from numerical ill-conditioning on long trajectories due to error accumulation in the backward pass.
+\end{itemize}
+
+\subsubsection{Handling Constraints in DDP}
+\begin{itemize}
+    \item Many options depending type of constraints.
+    \item Torque limits are often handled with a "squashing function", e.g. $tanh(u): \tilde u = u_{max} \tanh(u/u_{max})$
+    \item Effective, but adds nonlinearity and may need more itterations to converges.
+    \item Better option: solve box-constrained QP in the backward pass:
+    \begin{align}
+        \Delta u & = \arg \min_{\Delta u} S(x + \Delta x, u + \Delta u) \\
+        \ni & u_{min} \leq u + \Delta u \leq u_{max}
+    \end{align}
+    \item State constraints are harder. Often penalties are added to cost function. Can cause ill-conditioning.
+    \item Better option: Wrap entire DDP algorithm in an Augmented Lagrangian method.
+    \item AL method adds linear (multiplier) and quadratic (penalty) terms to cost, so easily fits into DDP.
+    \item Very effective for achieving fast convergence to coarse constraint tolerances, but can fail to achieve high accuracy due to ill-conditioning.
+\end{itemize}
+
+\subsubsection{Handling free initial state:}
+\begin{itemize}
+    \item Allow the solver to choose $x_0$, possibly within some bounds.
+    \item Add fictitions h = 0 step to the problem with dynamics:
+    \begin{align}
+        x_1 = f(x_0, u_0) = u_0 = A_0 x_0 + B_0 u_0 \\
+        A_0 = 0, B_0 = I 
+    \end{align}
+    \item Now $u_0$ becomes $x_1$
+\end{itemize}
+
+\subsubsection{Handling Free/Minimum Time Problem:}
+\begin{align}
+    \min_{x(t), u(t), T} J & = \int_0^T 1 dt \\
+    \ni \dot x & = f(x, u) \\
+    x(T) & = x_{goal} \\
+    U_{min} &\leq u(t) \leq U_{max}
+\end{align}
+\begin{itemize}
+    \item We don't want to change the number of knot points.
+    \item Make h(time step) from RK a control input.
+    \begin{align}
+        x_{k+1} = f(x_k, \tilde u_k), \tilde u_k = \begin{bmatrix}
+            u_k \\ h_k
+        \end{bmatrix}
+    \end{align}
+    \item Also scale the cost by h, e.g.
+    \begin{align}
+        J(\tilde x, \tilde u) = sum_{k=1}^{N-1} h_k l(x_k, u_k) + l_N(x_N)
+    \end{align}
+    \item Always nonlinear/nonconvex even if the continuous dynamics are linear.
+    \item Requires constraints on h, otherwise the solver can "cheat physics" by making h very large or negative to exploit discretization error.
+\end{itemize}
+
+
+\subsection{Notes on Linearization w/ LQR/MPC}
+\begin{align}
+    x_{k+1} & = f(x_k, u_k) \\
+    x_{k+1} + \Delta x_{k+1} & \approx f(x_k, u_k) + A \Delta x_k + B \Delta u_k \\
+    \Rightarrow \Delta x_{k+1} & = A \Delta x_k + B \Delta u_k \\
+    A & = \frac{\partial f}{\partial x}, B = \frac{\partial f}{\partial u}
+\end{align}
+When applying e.g. LQR:
+\begin{align}
+    \Delta u = -K \Delta x \\
+    \Rightarrow u = u_0 - K(x - x_0) 
+\end{align}
+
+
+
+
+
+
+
+
